@@ -25,12 +25,8 @@
  * DEBUG
  ******************************************************************************/
 #define SEC_DEBUG                   (0)
-#define SMSG
-#define DMSG
-#if SEC_DEBUG
-#else
-#define DMSG
-#endif
+#define SMSG(fmt, ...)
+#define DMSG(fmt, ...)
 
 /******************************************************************************
  * LOCAL VERIABLE
