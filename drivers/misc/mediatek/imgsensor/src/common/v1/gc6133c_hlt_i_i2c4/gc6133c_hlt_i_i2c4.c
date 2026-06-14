@@ -582,7 +582,7 @@ static int gc6133c_i2c4_probe(struct i2c_client *client,
 	gc6133c->hwen_flag = 1;
 	ret = GC6133C_GetSensorID(gc6133c);
 	if (ret < 0) {
-		qvga_dev_err(&client->dev,"%s: read_sensorid failed \n", __func__,ret);
+		qvga_dev_err(&client->dev,"%s: read_sensorid failed \n", __func__);
 		goto exit_i2c_check_id_failed;
 	}
 	/* code at 2022/9/6 start */
