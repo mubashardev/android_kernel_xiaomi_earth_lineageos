@@ -130,3 +130,8 @@ all.config
 
 # Kdevelop4
 *.kdev4
+
+# macOS Build Compatibility and build outputs
+/out/
+/compat-bin/
+/host-include/
