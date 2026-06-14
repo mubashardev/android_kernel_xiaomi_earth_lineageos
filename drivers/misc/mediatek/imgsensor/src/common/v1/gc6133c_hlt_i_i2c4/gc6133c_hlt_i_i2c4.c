@@ -292,7 +292,8 @@ static void gc6133c_avdd_control(struct gc6133c *gc6133c, bool flag)
 
 	if (flag) {
 		regulator_set_voltage(vcama, 2800000, 2800000);
-		regulator_enable(vcama);
+		if (regulator_enable(vcama))
+			qvga_dev_err(gc6133c->dev, "%s AVDD regulator_enable failed\n", __func__);
 	} else {
 		regulator_disable(vcama);
 	}
@@ -311,7 +312,8 @@ static void gc6133c_iovdd_control(struct gc6133c *gc6133c, bool flag)
     }
     if (flag) {
         regulator_set_voltage(vcamio, 1800000, 1800000);
-        regulator_enable(vcamio);
+        if (regulator_enable(vcamio))
+            qvga_dev_err(gc6133c->dev, "%s IOVDD regulator_enable failed\n", __func__);
     } else {
         regulator_disable(vcamio);
     }
