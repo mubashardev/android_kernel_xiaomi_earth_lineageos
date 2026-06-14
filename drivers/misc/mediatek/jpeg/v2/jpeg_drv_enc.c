@@ -92,7 +92,7 @@ static int jpeg_ion_get_mva(struct ion_client *client, struct ion_handle *handle
 	*mva = phy_addr;
 	*size = mva_size;
 	JPEG_MSG("alloc mmu addr hnd=0x%p,mva=0x%p size %d\n",
-		   handle, *mva, *size);
+		   handle, (void *)(unsigned long)*mva, *size);
 
 	return 0;
 }
@@ -188,7 +188,7 @@ unsigned int jpeg_drv_enc_set_src_buf(struct ion_client *pIonClient,
 		jpeg_ion_free_handle(pIonClient, handle);
 		srcAddr_C = 0;
 
-		JPEG_MSG("srcAddr 0x%p srcAddr_C 0x%p line %d\n", srcAddr, srcAddr_C, __LINE__);
+		JPEG_MSG("srcAddr 0x%p srcAddr_C 0x%p line %d\n", (void *)(unsigned long)srcAddr, (void *)(unsigned long)srcAddr_C, __LINE__);
 	} else if (srcFd == srcFd2) {
 		handle = jpeg_ion_import_handle(pIonClient, srcFd);
 		if (handle == NULL) {
@@ -200,7 +200,7 @@ unsigned int jpeg_drv_enc_set_src_buf(struct ion_client *pIonClient,
 
 		jpeg_ion_free_handle(pIonClient, handle);
 		srcAddr_C = (dma_addr_t)mem_stride*mem_height + srcAddr;
-		JPEG_MSG("srcAddr 0x%p srcAddr_C 0x%p line %d\n", srcAddr, srcAddr_C, __LINE__);
+		JPEG_MSG("srcAddr 0x%p srcAddr_C 0x%p line %d\n", (void *)(unsigned long)srcAddr, (void *)(unsigned long)srcAddr_C, __LINE__);
 	} else {
 		handle = jpeg_ion_import_handle(pIonClient, srcFd);
 		if (handle == NULL) {
@@ -222,7 +222,7 @@ unsigned int jpeg_drv_enc_set_src_buf(struct ion_client *pIonClient,
 
 		jpeg_ion_free_handle(pIonClient, handle);
 
-		JPEG_MSG("srcAddr 0x%p srcAddr_C 0x%p line %d\n", srcAddr, srcAddr_C, __LINE__);
+		JPEG_MSG("srcAddr 0x%p srcAddr_C 0x%p line %d\n", (void *)(unsigned long)srcAddr, (void *)(unsigned long)srcAddr_C, __LINE__);
 	}
 
 	ret &= jpeg_drv_enc_set_image_stride(img_stride);
@@ -426,8 +426,8 @@ unsigned int jpeg_drv_enc_set_blk_num(unsigned int blk_num)	/* NO_USE */
 unsigned int jpeg_drv_enc_set_luma_addr(dma_addr_t src_luma_addr)
 {
 	if (src_luma_addr & 0x0F)
-		JPEG_MSG("JPGENC: set LUMA addr not align (%x)\n",
-			 src_luma_addr);
+		JPEG_MSG("JPGENC: set LUMA addr not align (%llx)\n",
+			 (unsigned long long)src_luma_addr);
 
 	IMG_REG_WRITE((src_luma_addr), REG_ADDR_JPEG_ENC_SRC_LUMA_ADDR);
 
@@ -438,8 +438,8 @@ unsigned int jpeg_drv_enc_set_luma_addr(dma_addr_t src_luma_addr)
 unsigned int jpeg_drv_enc_set_chroma_addr(dma_addr_t src_chroma_addr)
 {
 	if (src_chroma_addr & 0x0F)
-		JPEG_MSG("JPGENC: set CHROMA addr not align (%x)\n",
-			 src_chroma_addr);
+		JPEG_MSG("JPGENC: set CHROMA addr not align (%llx)\n",
+			 (unsigned long long)src_chroma_addr);
 
 	IMG_REG_WRITE((src_chroma_addr), REG_ADDR_JPEG_ENC_SRC_CHROMA_ADDR);
 
@@ -539,7 +539,7 @@ unsigned int jpeg_drv_enc_set_dst_buff(struct ion_client *pIonClient,
 	}
 
 	dst_addr += init_offset;
-	JPEG_MSG("dst_addr 0x%p  offset 0x%x line %d\n", dst_addr, init_offset, __LINE__);
+	JPEG_MSG("dst_addr 0x%p  offset 0x%x line %d\n", (void *)(unsigned long)dst_addr, init_offset, __LINE__);
 
 
 
