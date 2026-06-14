@@ -4028,7 +4028,7 @@ static ssize_t store_BAT_HEALTH(
 	int i = 0, j = 0, count = 0, value[50];
 
 
-	bm_err("%s, size =%d, str=%s\n", __func__, size, buf);
+	bm_err("%s, size =%zu, str=%s\n", __func__, size, buf);
 
 	if (size < 90 || size > 350) {
 		bm_err("%s error, size mismatch\n", __func__);
@@ -4060,7 +4060,9 @@ static ssize_t store_BAT_HEALTH(
 			else
 				strncpy(copy_str, s+1, chr_size-1);
 
-			kstrtoint(copy_str, 10, &value[count]);
+			if (kstrtoint(copy_str, 10, &value[count])) {
+				/* ignore */
+			}
 			/* bm_err("::%s::count:%d,%d\n", copy_str, count, value[count]); */
 			s = pch;
 			pch = strchr(pch + 1, ',');

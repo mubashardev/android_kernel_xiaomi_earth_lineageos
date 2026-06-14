@@ -3311,7 +3311,7 @@ static int __init ccci_cldma_init(void)
 static void __exit ccci_cldma_exit(void)
 {
 	CCCI_NORMAL_LOG(-1, TAG,
-		"[%S] CLDMA driver is exit.", __func__);
+		"[%s] CLDMA driver is exit.", __func__);
 }
 
 module_init(ccci_cldma_init);

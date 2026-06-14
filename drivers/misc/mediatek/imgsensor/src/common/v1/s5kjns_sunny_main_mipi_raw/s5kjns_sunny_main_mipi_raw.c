@@ -3953,7 +3953,7 @@ static void custom1_setting(void)
 
 static kal_uint32 return_sensor_id(void)
 {
-	return ((read_cmos_sensor_8(0x0000) << 8) | read_cmos_sensor_8(0x0001) + 1);
+	return ((read_cmos_sensor_8(0x0000) << 8) | (read_cmos_sensor_8(0x0001) + 1));
 }
 
 static kal_uint16 get_vendor_id(void)

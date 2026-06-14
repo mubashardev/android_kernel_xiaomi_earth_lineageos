@@ -135,8 +135,8 @@ early_param("final_pcba", hqsys_pcba_get_board_type);
 int charger_manager_get_system_temp_level(void)
 {
 	if (!pinfo) {
-		pr_err("%s: failed to read charger info\n");
-		return PTR_ERR(pinfo);
+		pr_err("%s: failed to read charger info\n", __func__);
+		return -ENODEV;
 	}
 
 	return pinfo->temp_level;

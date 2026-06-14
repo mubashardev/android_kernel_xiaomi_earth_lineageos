@@ -191,7 +191,7 @@ unsigned int ma_to_mw(unsigned int val)
 
 	bat_vol = get_battery_volt();	/* return mV */
 	if (bat_vol <= 0) {
-		pr_notice_ratelimited("[%s] wrong volt=%d, set 4V\n",
+		pr_notice_ratelimited("[ma_to_mw] wrong volt=%u, set 4V\n",
 			bat_vol);
 		bat_vol = 4000;
 	}

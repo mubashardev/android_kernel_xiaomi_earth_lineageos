@@ -2035,7 +2035,7 @@ uint32_t wlanGetHarvardTailerInfo(IN struct ADAPTER
 
 		kalMemZero(aucBuf, 32);
 		kalStrnCpy(aucBuf, prTailers[u4SecIdx].ram_version,
-			   sizeof(prTailers[u4SecIdx].ram_version));
+			   sizeof(aucBuf) - 1);
 		DBGLOG(INIT, INFO, "date[%s] version[%s]\n",
 		       prTailers[u4SecIdx].ram_built_date, aucBuf);
 	}
@@ -2064,7 +2064,7 @@ uint32_t wlanGetConnacTailerInfo(IN struct WIFI_VER_INFO *prVerInfo,
 
 	kalMemZero(aucBuf, 32);
 	kalStrnCpy(aucBuf, prComTailer->aucRamVersion,
-		   sizeof(prComTailer->aucRamVersion));
+		   sizeof(aucBuf) - 1);
 
 	/* Dump image information */
 	DBGLOG(INIT, INFO,
@@ -2410,7 +2410,7 @@ uint32_t wlanDownloadPatch(IN struct ADAPTER *prAdapter)
 	}
 
 #if (CFG_ROM_PATCH_NO_SEM_CTRL == 0)
-#pragma message("ROM code supports SEM-CTRL for ROM patch download")
+/* ROM code supports SEM-CTRL for ROM patch download */
 	if (wlanPatchIsDownloaded(prAdapter)) {
 		kalFirmwareImageUnmapping(prAdapter->prGlueInfo, NULL,
 					  prFwBuffer);
@@ -2418,7 +2418,7 @@ uint32_t wlanDownloadPatch(IN struct ADAPTER *prAdapter)
 		return WLAN_STATUS_SUCCESS;
 	}
 #else
-#pragma message("ROM code supports no SEM-CTRL for ROM patch download")
+/* ROM code supports no SEM-CTRL for ROM patch download */
 #endif
 
 	/* Patch DL */

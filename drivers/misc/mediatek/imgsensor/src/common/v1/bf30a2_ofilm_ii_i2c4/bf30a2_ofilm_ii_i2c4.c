@@ -258,7 +258,8 @@ static void bf30a2_avdd_control(struct bf30a2 *bf30a2, bool flag)
 	}
 	if (flag) {
 		regulator_set_voltage(vcama, 2800000, 2800000);
-		regulator_enable(vcama);
+		if (regulator_enable(vcama))
+			qvga_dev_err(bf30a2->dev, "%s AVDD regulator_enable failed\n", __func__);
 	} else {
 		regulator_disable(vcama);
 	}
@@ -277,7 +278,8 @@ static void bf30a2_iovdd_control(struct bf30a2 *bf30a2, bool flag)
 	}
 	if (flag) {
 		regulator_set_voltage(vcamio, 1800000, 1800000);
-		regulator_enable(vcamio);
+		if (regulator_enable(vcamio))
+			qvga_dev_err(bf30a2->dev, "%s IOVDD regulator_enable failed\n", __func__);
 	} else {
 		regulator_disable(vcamio);
 	}

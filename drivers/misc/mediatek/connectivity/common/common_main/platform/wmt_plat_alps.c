@@ -419,7 +419,7 @@ INT32 wmt_plat_deinit(VOID)
 	return 0;
 }
 
-INT32 wmt_plat_sdio_ctrl(WMT_SDIO_SLOT_NUM sdioPortType, ENUM_FUNC_STATE on)
+INT32 wmt_plat_sdio_ctrl(UINT32 sdioPortType, ENUM_FUNC_STATE on)
 {
 	return board_sdio_ctrl(sdioPortType, (on == FUNC_OFF) ? 0 : 1);
 }

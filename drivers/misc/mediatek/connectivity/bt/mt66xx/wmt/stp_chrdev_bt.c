@@ -518,7 +518,7 @@ ssize_t BT_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			goto OUT;
 		}
 
-		BT_LOG_PRT_DBG_RAW(o_buf, count, "%s: len[%d], TX: ", __func__, count);
+		BT_LOG_PRT_DBG_RAW(o_buf, count, "%s: len[%zu], TX: ", __func__, count);
 		retval = __bt_write(o_buf, count);
 	}
 
@@ -554,7 +554,7 @@ ssize_t BT_write(struct file *filp, const char __user *buf, size_t count, loff_t
 			goto OUT;
 		}
 
-		BT_LOG_PRT_DBG_RAW(o_buf, count, "%s: len[%d], TX: ", __func__, count);
+		BT_LOG_PRT_DBG_RAW(o_buf, count, "%s: len[%zu], TX: ", __func__, count);
 		retval = __bt_write(o_buf, count);
 	}
 

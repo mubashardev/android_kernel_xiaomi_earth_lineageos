@@ -81,6 +81,14 @@
 #define EF_ARM_EABI_VER5 0x05000000
 #endif
 
+#ifndef EF_ARM_EABIMASK
+#define EF_ARM_EABIMASK 0xFF000000
+#endif
+
+#ifndef EF_ARM_EABI_VERSION
+#define EF_ARM_EABI_VERSION(flags) ((flags) & EF_ARM_EABIMASK)
+#endif
+
 #ifndef EF_ARM_ABI_FLOAT_SOFT
 #define EF_ARM_ABI_FLOAT_SOFT 0x200
 #endif

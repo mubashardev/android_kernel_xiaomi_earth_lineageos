@@ -5104,7 +5104,7 @@ feature_control(MSDK_SENSOR_FEATURE_ENUM feature_id,
 		streaming_control(KAL_FALSE);
 		break;
 	case SENSOR_FEATURE_SET_STREAMING_RESUME:
-		pr_debug("SENSOR_FEATURE_SET_STREAMING_RESUME, shutter:%llu\n",
+		pr_debug("SENSOR_FEATURE_SET_STREAMING_RESUME, shutter:%u\n",
 				 (UINT32) *feature_data);
 		if (*feature_data != 0)
 			set_shutter((UINT32) *feature_data);

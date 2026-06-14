@@ -3291,8 +3291,9 @@ int cts_set_dev_charger_attached(struct cts_device *cts_dev, bool attached)
 	cts_info("Set dev charger %s", attached ? "ATTACHED" : "DETATCHED");
 	buf[0] = attached ? 1 : 0;
 	ret = cts_tcs_spi_write(cts_dev, TP_STD_CMD_SYS_STS_CHARGER_PLUGIN_RW, buf, sizeof(buf));
-    if (ret)
-        cts_err("Send CMD_CHARGER_%s failed %d", attached ? "ATTACHED" : "DETACHED", ret);
+	if (ret) {
+		cts_err("Send CMD_CHARGER_%s failed %d", attached ? "ATTACHED" : "DETACHED", ret);
+	}
 
 	return ret;
 }

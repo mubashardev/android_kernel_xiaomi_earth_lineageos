@@ -714,11 +714,9 @@ static int cqdma_probe(struct platform_device *pdev)
 					i, ret);
 
 #ifdef CONFIG_PM_SLEEP
-	if (&wk_lock[i]) {
 		memset(&wk_lock[i], 0, sizeof(wk_lock[i]));
 		(&wk_lock[i])->name = "cqdma_wakelock";
 		wakeup_source_add(&wk_lock[i]);
-	}
 #endif
 	}
 

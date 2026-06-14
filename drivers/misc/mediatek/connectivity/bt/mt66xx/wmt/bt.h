@@ -43,7 +43,7 @@
 #define BT_LOG_ERR              1
 #define RAW_MAX_BYTES           30
 
-static uint8_t raw_buf[RAW_MAX_BYTES * 5 + 10];
+static uint8_t raw_buf[RAW_MAX_BYTES * 5 + 10] __maybe_unused;
 extern UINT32 gBtDbgLevel;
 
 #define BT_LOG_PRT_DBG(fmt, arg...)	\

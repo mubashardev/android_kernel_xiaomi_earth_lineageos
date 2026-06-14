@@ -18,7 +18,7 @@ struct  ccci_plat_val {
 	void __iomem *md_plat_info;
 };
 
-static struct ccci_plat_val md_cd_plat_val_ptr;
+static struct ccci_plat_val md_cd_plat_val_ptr __attribute__((unused));
 
 /* the last EMI bank, properly not used */
 #define INVALID_ADDR (0xF0000000)

@@ -1641,7 +1641,7 @@ static signed int mt_fm_init(void)
 	WCN_DBG(FM_NTC | MAIN, "%s\n", __func__);
 	if (test_bit(FM_DEINIT_BIT, &g_fm_module_flag)) {
 		WCN_DBG(FM_NTC | MAIN,
-			"mt_fm_exit does not finished yet\n", __func__);
+			"mt_fm_exit does not finished yet\n");
 		return -1;
 	}
 

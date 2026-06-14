@@ -65,7 +65,7 @@ void mtk_vcu_mem_release(struct mtk_vcu_queue *vcu_queue)
 			vcu_queue->cmdq_dev,
 			(void *)(unsigned long)tmp->kva,
 			(dma_addr_t)tmp->pa);
-		pr_info("Free cmdq pa %llx ref_cnt = %d\n", tmp->pa,
+		pr_info("Free cmdq pa %llx ref_cnt = %d\n", (unsigned long long)tmp->pa,
 			atomic_read(&tmp->ref_cnt));
 		list_del(p);
 		kfree(tmp);
@@ -202,7 +202,7 @@ void *mtk_vcu_get_buffer(struct mtk_vcu_queue *vcu_queue,
 	mutex_unlock(&vcu_queue->mmap_lock);
 	atomic_set(&vcu_buffer->ref_cnt, 1);
 
-	pr_debug("[%s] Num_buffers = %d iova = %llx va = %llx va_id = %lld size = %d mem_priv = %lx\n",
+	pr_debug("[%s] Num_buffers = %d iova = %llx va = %p va_id = %lld size = %d mem_priv = %lx\n",
 		__func__, vcu_queue->num_buffers, mem_buff_data->iova,
 		cook, vcu_buffer->va_id, (unsigned int)vcu_buffer->size,
 		(unsigned long)vcu_buffer->mem_priv);
@@ -260,7 +260,7 @@ int mtk_vcu_free_buffer(struct mtk_vcu_queue *vcu_queue,
 			    mem_buff_data->iova == *(dma_addr_t *)dma_addr &&
 			    mem_buff_data->len == vcu_buffer->size &&
 			    atomic_read(&vcu_buffer->ref_cnt) == 1) {
-				pr_debug("Free buff = %d iova = %llx va = %llx va_id = %llx, queue_num = %d\n",
+				pr_debug("Free buff = %d iova = %llx va = %p va_id = %llx, queue_num = %d\n",
 						buffer, mem_buff_data->iova,
 						cook, mem_buff_data->va,
 						num_buffers);

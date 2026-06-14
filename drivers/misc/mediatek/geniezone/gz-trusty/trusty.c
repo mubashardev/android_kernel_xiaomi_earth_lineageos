@@ -904,7 +904,7 @@ static int trusty_poll_create(struct trusty_state *s)
 				      "trusty_poll_task");
 	if (IS_ERR(s->poll_task)) {
 		trusty_info(s->dev, "%s: unable create trusty_poll_worker\n",
-			    __func__, s->tee_id);
+			    __func__);
 		return PTR_ERR(s->poll_task);
 	}
 
