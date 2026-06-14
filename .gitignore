@@ -135,3 +135,7 @@ all.config
 /out/
 /compat-bin/
 /host-include/
+AnyKernel3
+/KernelSU
+/KernelSU-Next
+

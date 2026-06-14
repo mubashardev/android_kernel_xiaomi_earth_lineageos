@@ -1878,7 +1878,11 @@ ifneq ($(cmd_files),)
   include $(cmd_files)
 endif
 
+# Ensure KernelSU builds after security (which generates flask.h)
+KernelSU/kernel: security
+
 endif	# skip-makefile
+
 
 PHONY += FORCE
 FORCE:

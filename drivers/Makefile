@@ -193,5 +193,3 @@ obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_INTERCONNECT)     += interconnect/
 obj-$(CONFIG_SWITCH)		+= switch/
 
-
-obj-$(CONFIG_KSU) += kernelsu/
