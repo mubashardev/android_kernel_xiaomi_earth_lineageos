@@ -205,12 +205,23 @@ setup_variant() {
       # Make sure we have the reference (fetch if needed)
       git -C "${KERNEL_DIR}/${src}" fetch origin "${target_ref}:${target_ref}" --tags 2>/dev/null || \
       git -C "${KERNEL_DIR}/${src}" fetch origin "${target_ref}" --tags 2>/dev/null || true
+      git -C "${KERNEL_DIR}/${src}" reset --hard HEAD 2>/dev/null || true
+      git -C "${KERNEL_DIR}/${src}" clean -fd 2>/dev/null || true
       git -C "${KERNEL_DIR}/${src}" checkout -q "${target_ref}"
       
       if [[ "$variant" == "ksu-next+susfs" ]]; then
         log "Applying legacy KernelSU-Next SUSFS header fix..."
         sed -i '' 's/susfs_def.h/susfs.h/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || \
         sed -i 's/susfs_def.h/susfs.h/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || true
+        
+        # Comment out undefined susfs functions in setuid_hook.c
+        sed -i '' 's/susfs_reorder_mnt_id();/\/\/susfs_reorder_mnt_id();/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || \
+        sed -i 's/susfs_reorder_mnt_id();/\/\/susfs_reorder_mnt_id();/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || true
+        sed -i '' 's/susfs_run_sus_path_loop(new_uid);/\/\/susfs_run_sus_path_loop(new_uid);/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || \
+        sed -i 's/susfs_run_sus_path_loop(new_uid);/\/\/susfs_run_sus_path_loop(new_uid);/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || true
+        
+        # Define missing ksu_try_umount for fs/susfs.c
+        echo "void ksu_try_umount(const char *mnt, bool check_mnt, int flags, uid_t uid) { try_umount(mnt, flags); }" >> "${KERNEL_DIR}/${src}/kernel/kernel_umount.c"
         
         # Rewrite supercalls.c to be compatible with latest susfs
         local supercalls="${KERNEL_DIR}/${src}/kernel/supercalls.c"
@@ -323,9 +334,13 @@ teardown_variant() {
   # Restore submodules to default branches
   if [[ "$variant" == "ksu-next" || "$variant" == "ksu-next+susfs" ]]; then
     log "Restoring KernelSU-Next to dev branch..."
+    git -C "${KERNEL_DIR}/KernelSU-Next" reset --hard HEAD 2>/dev/null || true
+    git -C "${KERNEL_DIR}/KernelSU-Next" clean -fd 2>/dev/null || true
     git -C "${KERNEL_DIR}/KernelSU-Next" checkout -q dev || true
   elif [[ "$variant" == "sukisu" || "$variant" == "sukisu-ultra+susfs" ]]; then
     log "Restoring SukiSU to main branch..."
+    git -C "${KERNEL_DIR}/SukiSU" reset --hard HEAD 2>/dev/null || true
+    git -C "${KERNEL_DIR}/SukiSU" clean -fd 2>/dev/null || true
     git -C "${KERNEL_DIR}/SukiSU" checkout -q main || true
   fi
 }
