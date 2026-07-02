@@ -136,7 +136,7 @@ build_kernel() {
 
   log "Compiling kernel (${JOBS} threads)..."
   local start_time=$SECONDS
-  make "${MAKE_FLAGS[@]}"
+  make "${MAKE_FLAGS[@]}" Image.gz-dtb
   local elapsed=$(( SECONDS - start_time ))
   ok "Kernel compiled in ${elapsed}s"
 }
@@ -206,6 +206,109 @@ setup_variant() {
       git -C "${KERNEL_DIR}/${src}" fetch origin "${target_ref}:${target_ref}" --tags 2>/dev/null || \
       git -C "${KERNEL_DIR}/${src}" fetch origin "${target_ref}" --tags 2>/dev/null || true
       git -C "${KERNEL_DIR}/${src}" checkout -q "${target_ref}"
+      
+      if [[ "$variant" == "ksu-next+susfs" ]]; then
+        log "Applying legacy KernelSU-Next SUSFS header fix..."
+        sed -i '' 's/susfs_def.h/susfs.h/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || \
+        sed -i 's/susfs_def.h/susfs.h/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || true
+        
+        # Rewrite supercalls.c to be compatible with latest susfs
+        local supercalls="${KERNEL_DIR}/${src}/kernel/supercalls.c"
+        python3 -c '
+import sys
+filepath = sys.argv[1]
+with open(filepath, "r") as f:
+    content = f.read()
+start_marker = "if (magic2 == SUSFS_MAGIC && current_uid().val == 0) {"
+end_marker = "#endif // #ifdef CONFIG_KSU_SUSFS"
+start_idx = content.find(start_marker)
+
+# Find the correct end_idx that is exactly the end_marker without any suffix
+curr_idx = start_idx
+while True:
+    idx = content.find(end_marker, curr_idx)
+    if idx == -1:
+        end_idx = -1
+        break
+    if content[idx+len(end_marker)] in ["\n", "\r", " "]:
+        end_idx = idx
+        break
+    curr_idx = idx + len(end_marker)
+
+if start_idx != -1 and end_idx != -1:
+    new_block = start_marker + """
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+        if (cmd == CMD_SUSFS_ADD_SUS_PATH) {
+            susfs_add_sus_path((void __user *)*arg);
+            return 0;
+        }
+#endif
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+        if (cmd == CMD_SUSFS_ADD_SUS_MOUNT) {
+            susfs_add_sus_mount((void __user *)*arg);
+            return 0;
+        }
+#endif
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+        if (cmd == CMD_SUSFS_ADD_SUS_KSTAT) {
+            susfs_add_sus_kstat((void __user *)*arg);
+            return 0;
+        }
+        if (cmd == CMD_SUSFS_UPDATE_SUS_KSTAT) {
+            susfs_update_sus_kstat((void __user *)*arg);
+            return 0;
+        }
+        if (cmd == CMD_SUSFS_ADD_SUS_KSTAT_STATICALLY) {
+            susfs_add_sus_kstat((void __user *)*arg);
+            return 0;
+        }
+#endif
+#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+        if (cmd == CMD_SUSFS_ADD_TRY_UMOUNT) {
+            susfs_add_try_umount((void __user *)*arg);
+            return 0;
+        }
+#endif
+#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+        if (cmd == CMD_SUSFS_SET_UNAME) {
+            susfs_set_uname((void __user *)*arg);
+            return 0;
+        }
+#endif
+#ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
+        if (cmd == CMD_SUSFS_ENABLE_LOG) {
+            susfs_set_log(1);
+            return 0;
+        }
+#endif
+#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
+        if (cmd == CMD_SUSFS_SET_CMDLINE_OR_BOOTCONFIG) {
+            susfs_set_cmdline_or_bootconfig((void __user *)*arg);
+            return 0;
+        }
+#endif
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+        if (cmd == CMD_SUSFS_ADD_OPEN_REDIRECT) {
+            susfs_add_open_redirect((void __user *)*arg);
+            return 0;
+        }
+#endif
+        return 0;
+    }
+"""
+    # Insert SUSFS_MAGIC if it might be missing
+    magic_def = """#ifndef SUSFS_MAGIC
+#define SUSFS_MAGIC 0x53555346
+#endif
+"""
+    if "SUSFS_MAGIC" not in content[:start_idx]:
+        new_block = magic_def + new_block
+        
+    content = content[:start_idx] + new_block + content[end_idx:]
+    with open(filepath, "w") as f:
+        f.write(content)
+' "$supercalls"
+      fi
       
       swap_ksu "$src"
       ksu_enable
