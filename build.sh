@@ -152,6 +152,9 @@ package_zip() {
   log "Copying Image.gz-dtb to AnyKernel3..."
   cp "$image" "${AK3_DIR}/Image.gz-dtb"
 
+  log "Restoring device-specific anykernel.sh..."
+  cp "${KERNEL_DIR}/anykernel-earth.sh" "${AK3_DIR}/anykernel.sh"
+
   log "Updating kernel.string in anykernel.sh..."
   sed -i.bak "s|^kernel\.string=.*|kernel.string=Earth Kernel [${label}] by Mubashar Dev|" \
     "${AK3_DIR}/anykernel.sh"

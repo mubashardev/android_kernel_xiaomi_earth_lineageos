@@ -35,46 +35,6 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Install AnyKernel3
-        run: |
-          git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git AnyKernel3
-          # Restore device-specific anykernel.sh over the cloned generic one
-          # (our repo stores AnyKernel3/ in .gitignore — patch it in CI)
-          cat > AnyKernel3/anykernel.sh << 'AKSH'
-          ### AnyKernel3 Ramdisk Mod Script
-          ## osm0sis @ xda-developers
-
-          ### AnyKernel setup
-          properties() { '
-          kernel.string=Earth Kernel by Mubashar
-          do.devicecheck=1
-          do.modules=0
-          do.systemless=1
-          do.cleanup=1
-          do.cleanuponabort=0
-          device.name1=earth
-          device.name2=celestial
-          supported.versions=
-          supported.patchlevels=
-          '; }
-
-          boot_attributes() {
-          set_perm_recursive 0 0 755 644 $RAMDISK/*;
-          set_perm_recursive 0 0 750 750 $RAMDISK/init* $RAMDISK/sbin;
-          }
-
-          block=/dev/block/by-name/boot
-          is_slot_device=auto;
-          ramdisk_compression=auto;
-          PATCH_VBMETA_FLAG=auto;
-
-          . tools/ak3-core.sh;
-          dump_boot;
-          backup_file init.rc;
-          replace_string init.rc "cpuctl cpu,timer_slack" "mount cgroup none /dev/cpuctl cpu" "mount cgroup none /dev/cpuctl cpu,timer_slack";
-          write_boot;
-          AKSH
-
       - name: Install toolchain
         run: |
           sudo apt-get update -qq

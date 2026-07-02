@@ -135,7 +135,6 @@ all.config
 /out/
 /compat-bin/
 /host-include/
-AnyKernel3
 
 # Build releases output
 /releases/
