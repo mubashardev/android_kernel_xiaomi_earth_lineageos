@@ -136,11 +136,7 @@ all.config
 /compat-bin/
 /host-include/
 AnyKernel3
-/KernelSU
-/KernelSU-Next
 
-# Multi-variant build system
-/KernelSU-Vanilla/
-/SukiSU/
+# Build releases output
 /releases/
 

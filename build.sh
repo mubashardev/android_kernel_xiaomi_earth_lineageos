@@ -3,12 +3,8 @@
 #  build.sh — Multi-Variant Kernel Builder for Xiaomi Earth (MT6768 / 4.19)
 #  Produces optional flashable zips: vanilla | ksu-next | sukisu
 #
-#  Directory layout:
-#    KernelSU/      → symlink, swapped per variant (KernelSU-Next | SukiSU)
-#    KernelSU-Next/ → real dir, KernelSU-Next source
-#    SukiSU/        → real dir, SukiSU-Ultra source
-#
-#  Vanilla build: KernelSU module is disabled via Makefile toggle (no swap needed)
+#  Source management: KernelSU-Next and SukiSU are git submodules.
+#  KernelSU/ is a symlink (committed) that is swapped at build time.
 #
 #  Usage:
 #    ./build.sh                        → build ALL three variants
@@ -22,17 +18,36 @@ set -euo pipefail
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 KERNEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LLVM_BIN="/opt/homebrew/opt/llvm/bin"
-CROSS_COMPILE="aarch64-elf-"
 OUT_DIR="${KERNEL_DIR}/out"
 AK3_DIR="${KERNEL_DIR}/AnyKernel3"
 RELEASES_DIR="${KERNEL_DIR}/releases"
 DEFCONFIG="earth_defconfig"
-JOBS="$(sysctl -n hw.logicalcpu)"
-DATE="$(date +%Y%m%d)"
 MAKEFILE="${KERNEL_DIR}/Makefile"
 
-# ── Variant source directories (used by ksu-next + sukisu) ───────────────────
+# ── OS-aware toolchain detection ─────────────────────────────────────────────
+if [[ "$(uname)" == "Darwin" ]]; then
+  LLVM_BIN="/opt/homebrew/opt/llvm/bin"
+  CROSS_COMPILE="aarch64-elf-"
+  JOBS="$(sysctl -n hw.logicalcpu)"
+  PATH="${LLVM_BIN}:/opt/homebrew/bin:${PATH}"
+else
+  # Linux (GitHub Actions / Ubuntu)
+  # Find the highest installed LLVM version
+  LLVM_VER="$(ls /usr/lib/llvm-*/bin/clang 2>/dev/null | grep -oP '(?<=llvm-)\d+' | sort -rn | head -1)"
+  if [[ -n "${LLVM_VER}" ]]; then
+    LLVM_BIN="/usr/lib/llvm-${LLVM_VER}/bin"
+  else
+    LLVM_BIN="/usr/bin"
+  fi
+  CROSS_COMPILE="aarch64-linux-gnu-"
+  JOBS="$(nproc)"
+  PATH="${LLVM_BIN}:${PATH}"
+fi
+export PATH
+
+DATE="$(date +%Y%m%d)"
+
+# ── Variant source directories ────────────────────────────────────────────────
 declare -A VARIANT_DIRS=(
   [ksu-next]="KernelSU-Next"
   [sukisu]="SukiSU"
@@ -55,26 +70,31 @@ err()  { echo -e "${RED}[ERROR]${RESET} $*" >&2; exit 1; }
 
 # ── Sanity checks ─────────────────────────────────────────────────────────────
 check_deps() {
-  [[ -f "${LLVM_BIN}/clang" ]]  || err "Clang not found at ${LLVM_BIN}/clang"
+  [[ -f "${LLVM_BIN}/clang" ]] || \
+    err "Clang not found at ${LLVM_BIN}/clang (uname: $(uname))"
   command -v "${CROSS_COMPILE}gcc" &>/dev/null || \
-    err "Cross-compiler ${CROSS_COMPILE}gcc not found in PATH (brew install aarch64-elf-gcc)"
+    err "Cross-compiler ${CROSS_COMPILE}gcc not found in PATH"
   [[ -d "${AK3_DIR}" ]]         || err "AnyKernel3 directory not found"
   [[ -f "${MAKEFILE}" ]]        || err "Not inside a kernel source tree"
-  [[ -d "${KERNEL_DIR}/KernelSU-Next" ]] || err "KernelSU-Next/ directory not found"
-  [[ -d "${KERNEL_DIR}/SukiSU" ]]        || err "SukiSU/ directory not found — run: git clone https://github.com/SukiSU-Ultra/SukiSU-Ultra.git SukiSU"
+  [[ -d "${KERNEL_DIR}/KernelSU-Next/kernel" ]] || \
+    err "KernelSU-Next submodule not initialised — run: git submodule update --init --recursive"
+  [[ -d "${KERNEL_DIR}/SukiSU/kernel" ]] || \
+    err "SukiSU submodule not initialised — run: git submodule update --init --recursive"
 }
 
-# ── KernelSU Makefile toggle (for vanilla) ────────────────────────────────────
+# ── KernelSU Makefile toggle (vanilla: no KSU module) ────────────────────────
 ksu_disable() {
   log "Disabling KernelSU module in Makefile (vanilla build)"
-  sed -i '' 's|^core-y.*+= KernelSU/kernel/|# &|' "${MAKEFILE}"
-  sed -i '' 's|^KernelSU/kernel: security|# &|' "${MAKEFILE}"
+  sed -i.bak 's|^\(core-y.*+= KernelSU/kernel/\)|# \1|' "${MAKEFILE}"
+  sed -i.bak 's|^\(KernelSU/kernel: security\)|# \1|' "${MAKEFILE}"
+  rm -f "${MAKEFILE}.bak"
 }
 
 ksu_enable() {
   log "Re-enabling KernelSU module in Makefile"
-  sed -i '' 's|^# \(core-y.*+= KernelSU/kernel/\)|\1|' "${MAKEFILE}"
-  sed -i '' 's|^# \(KernelSU/kernel: security\)|\1|' "${MAKEFILE}"
+  sed -i.bak 's|^# \(core-y.*+= KernelSU/kernel/\)|\1|' "${MAKEFILE}"
+  sed -i.bak 's|^# \(KernelSU/kernel: security\)|\1|' "${MAKEFILE}"
+  rm -f "${MAKEFILE}.bak"
 }
 
 # ── Symlink swap (for ksu-next / sukisu) ──────────────────────────────────────
@@ -88,8 +108,7 @@ swap_ksu() {
 
 # ── Build kernel ──────────────────────────────────────────────────────────────
 build_kernel() {
-  local variant="$1"
-  local label="${VARIANT_LABELS[$variant]}"
+  local label="${VARIANT_LABELS[$1]}"
 
   echo ""
   echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -111,7 +130,6 @@ build_kernel() {
     READELF="${LLVM_BIN}/llvm-readelf"
     STRIP="${LLVM_BIN}/llvm-strip"
     CROSS_COMPILE="${CROSS_COMPILE}"
-    PATH="${LLVM_BIN}:/opt/homebrew/bin:${PATH}"
   )
 
   log "Generating defconfig (${DEFCONFIG})..."
@@ -138,8 +156,9 @@ package_zip() {
   cp "$image" "${AK3_DIR}/Image.gz-dtb"
 
   log "Updating kernel.string in anykernel.sh..."
-  sed -i '' "s|^kernel\.string=.*|kernel.string=Earth Kernel [${label}] by Mubashar|" \
+  sed -i.bak "s|^kernel\.string=.*|kernel.string=Earth Kernel [${label}] by Mubashar Dev|" \
     "${AK3_DIR}/anykernel.sh"
+  rm -f "${AK3_DIR}/anykernel.sh.bak"
 
   log "Packaging ${zip_name}..."
   mkdir -p "${RELEASES_DIR}"
@@ -169,7 +188,7 @@ setup_variant() {
     ksu-next|sukisu)
       local src="${VARIANT_DIRS[$variant]}"
       [[ -d "${KERNEL_DIR}/${src}/kernel" ]] || \
-        err "'${src}/kernel' subdir missing — is ${src}/ a valid KernelSU source?"
+        err "'${src}/kernel' subdir missing — did submodules initialise?"
       swap_ksu "$src"
       ksu_enable
       ;;
@@ -178,13 +197,7 @@ setup_variant() {
 
 teardown_variant() {
   local variant="$1"
-  case "$variant" in
-    vanilla)
-      ksu_enable
-      ;;
-    *)
-      ;;
-  esac
+  [[ "$variant" == "vanilla" ]] && ksu_enable || true
 }
 
 build_variant() {
@@ -213,12 +226,12 @@ main() {
     done
   fi
 
-  local built=()
-  local failed=()
+  local built=(); local failed=()
   local total_start=$SECONDS
 
-  # Ensure Makefile is restored if we abort mid-build
-  trap 'ksu_enable 2>/dev/null; swap_ksu KernelSU-Next 2>/dev/null; echo -e "\n${RED}Build interrupted — Makefile restored${RESET}"' ERR INT TERM
+  # Restore Makefile + symlink on any exit
+  trap 'ksu_enable 2>/dev/null; swap_ksu KernelSU-Next 2>/dev/null
+        echo -e "\n${RED}Interrupted — state restored${RESET}"' ERR INT TERM
 
   for variant in "${variants[@]}"; do
     if build_variant "$variant"; then
@@ -231,27 +244,21 @@ main() {
 
   trap - ERR INT TERM
 
-  # Reset symlink to KernelSU-Next as default state
+  # Always restore to ksu-next default
   swap_ksu "KernelSU-Next"
   ksu_enable
 
-  # ── Summary ──────────────────────────────────────────────────────────────
   local total_elapsed=$(( SECONDS - total_start ))
   echo ""
   echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo -e "${BOLD}  Build Summary (${total_elapsed}s total)${RESET}"
   echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-
-  for v in "${built[@]}"; do
-    echo -e "  ${GREEN}✓${RESET} ${VARIANT_LABELS[$v]}"
-  done
-  for v in "${failed[@]}"; do
-    echo -e "  ${RED}✗${RESET} ${VARIANT_LABELS[$v]}"
-  done
+  for v in "${built[@]}"; do echo -e "  ${GREEN}✓${RESET} ${VARIANT_LABELS[$v]}"; done
+  for v in "${failed[@]}"; do echo -e "  ${RED}✗${RESET} ${VARIANT_LABELS[$v]}"; done
 
   echo ""
   if [[ ${#built[@]} -gt 0 ]]; then
-    echo -e "  Output directory: ${BOLD}${RELEASES_DIR}/${RESET}"
+    echo -e "  Output: ${BOLD}${RELEASES_DIR}/${RESET}"
     ls -lh "${RELEASES_DIR}"/kernel-earth-*-"${DATE}".zip 2>/dev/null \
       | awk '{print "  📦 "$NF" ("$5")"}' || true
   fi
