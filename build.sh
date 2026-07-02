@@ -195,9 +195,9 @@ setup_variant() {
       # Determine branch/tag to check out
       local target_ref=""
       case "$variant" in
-        ksu-next) target_ref="dev" ;;
+        ksu-next) target_ref="v3.2.0-legacy" ;;
         sukisu) target_ref="main" ;;
-        ksu-next+susfs) target_ref="v3.1.0-legacy-susfs" ;;
+        ksu-next+susfs) target_ref="v3.2.0-legacy" ;;
         sukisu-ultra+susfs) target_ref="builtin" ;;
       esac
       
@@ -210,114 +210,125 @@ setup_variant() {
       git -C "${KERNEL_DIR}/${src}" checkout -q "${target_ref}"
       
       if [[ "$variant" == "ksu-next+susfs" ]]; then
-        log "Applying legacy KernelSU-Next SUSFS header fix..."
-        sed -i '' 's/susfs_def.h/susfs.h/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || \
-        sed -i 's/susfs_def.h/susfs.h/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || true
+        log "Injecting SUSFS v1.5.5 support into KernelSU-Next v3.2.0-legacy branch..."
         
-        # Comment out undefined susfs functions in setuid_hook.c
-        sed -i '' 's/susfs_reorder_mnt_id();/\/\/susfs_reorder_mnt_id();/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || \
-        sed -i 's/susfs_reorder_mnt_id();/\/\/susfs_reorder_mnt_id();/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || true
-        sed -i '' 's/susfs_run_sus_path_loop(new_uid);/\/\/susfs_run_sus_path_loop(new_uid);/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || \
-        sed -i 's/susfs_run_sus_path_loop(new_uid);/\/\/susfs_run_sus_path_loop(new_uid);/g' "${KERNEL_DIR}/${src}/kernel/setuid_hook.c" 2>/dev/null || true
+        # 1. Add #include <linux/susfs.h> and call susfs_try_umount(new_uid) in setuid_hook.c
+        local setuid_hook="${KERNEL_DIR}/${src}/kernel/setuid_hook.c"
+        if [[ ! -f "$setuid_hook" ]]; then
+            # In legacy branches, it might be in root kernel/ directory or hook/
+            if [[ -f "${KERNEL_DIR}/${src}/kernel/hook/setuid_hook.c" ]]; then
+                setuid_hook="${KERNEL_DIR}/${src}/kernel/hook/setuid_hook.c"
+            fi
+        fi
         
-        # Define missing ksu_try_umount for fs/susfs.c
-        echo "void ksu_try_umount(const char *mnt, bool check_mnt, int flags, uid_t uid) { try_umount(mnt, flags); }" >> "${KERNEL_DIR}/${src}/kernel/kernel_umount.c"
-        
-        # Rewrite supercalls.c to be compatible with latest susfs
-        local supercalls="${KERNEL_DIR}/${src}/kernel/supercalls.c"
         python3 -c '
 import sys
 filepath = sys.argv[1]
 with open(filepath, "r") as f:
     content = f.read()
-start_marker = "if (magic2 == SUSFS_MAGIC && current_uid().val == 0) {"
-end_marker = "#endif // #ifdef CONFIG_KSU_SUSFS"
-start_idx = content.find(start_marker)
 
-# Find the correct end_idx that is exactly the end_marker without any suffix
-curr_idx = start_idx
-while True:
-    idx = content.find(end_marker, curr_idx)
-    if idx == -1:
-        end_idx = -1
-        break
-    if content[idx+len(end_marker)] in ["\n", "\r", " "]:
-        end_idx = idx
-        break
-    curr_idx = idx + len(end_marker)
+# Add include if not exists
+if "#include <linux/susfs.h>" not in content:
+    content = content.replace("#include \"feature/kernel_umount.h\"", "#include \"feature/kernel_umount.h\"\n#ifdef CONFIG_KSU_SUSFS\n#include <linux/susfs.h>\n#endif")
 
-if start_idx != -1 and end_idx != -1:
-    new_block = start_marker + """
+# Add susfs_try_umount if not exists
+if "susfs_try_umount(new_uid);" not in content:
+    content = content.replace("ksu_handle_umount(old_uid, new_uid);", "#ifdef CONFIG_KSU_SUSFS\n    susfs_try_umount(new_uid);\n#endif\n    ksu_handle_umount(old_uid, new_uid);")
+
+with open(filepath, "w") as f:
+    f.write(content)
+' "$setuid_hook"
+
+        # 2. Add SUSFS_MAGIC handler into supercalls.c or supercall.c
+        local supercalls="${KERNEL_DIR}/${src}/kernel/supercalls.c"
+        if [[ ! -f "$supercalls" ]]; then
+            if [[ -f "${KERNEL_DIR}/${src}/kernel/supercall/supercall.c" ]]; then
+                supercalls="${KERNEL_DIR}/${src}/kernel/supercall/supercall.c"
+            fi
+        fi
+        python3 -c '
+import sys
+filepath = sys.argv[1]
+with open(filepath, "r") as f:
+    content = f.read()
+
+magic_block = """
+#ifdef CONFIG_KSU_SUSFS
+    if (magic2 == SUSFS_MAGIC && current_uid().val == 0) {
+        switch(cmd) {
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-        if (cmd == CMD_SUSFS_ADD_SUS_PATH) {
-            susfs_add_sus_path((void __user *)*arg);
+        case CMD_SUSFS_ADD_SUS_PATH:
+            susfs_add_sus_path((void __user *)arg4);
             return 0;
-        }
 #endif
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-        if (cmd == CMD_SUSFS_ADD_SUS_MOUNT) {
-            susfs_add_sus_mount((void __user *)*arg);
+        case CMD_SUSFS_ADD_SUS_MOUNT:
+            susfs_add_sus_mount((void __user *)arg4);
             return 0;
-        }
 #endif
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-        if (cmd == CMD_SUSFS_ADD_SUS_KSTAT) {
-            susfs_add_sus_kstat((void __user *)*arg);
+        case CMD_SUSFS_ADD_SUS_KSTAT:
+            susfs_add_sus_kstat((void __user *)arg4);
             return 0;
-        }
-        if (cmd == CMD_SUSFS_UPDATE_SUS_KSTAT) {
-            susfs_update_sus_kstat((void __user *)*arg);
+        case CMD_SUSFS_UPDATE_SUS_KSTAT:
+            susfs_update_sus_kstat((void __user *)arg4);
             return 0;
-        }
-        if (cmd == CMD_SUSFS_ADD_SUS_KSTAT_STATICALLY) {
-            susfs_add_sus_kstat((void __user *)*arg);
+        case CMD_SUSFS_ADD_SUS_KSTAT_STATICALLY:
+            susfs_add_sus_kstat((void __user *)arg4);
             return 0;
-        }
 #endif
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
-        if (cmd == CMD_SUSFS_ADD_TRY_UMOUNT) {
-            susfs_add_try_umount((void __user *)*arg);
+        case CMD_SUSFS_ADD_TRY_UMOUNT:
+            susfs_add_try_umount((void __user *)arg4);
             return 0;
-        }
 #endif
 #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
-        if (cmd == CMD_SUSFS_SET_UNAME) {
-            susfs_set_uname((void __user *)*arg);
+        case CMD_SUSFS_SET_UNAME:
+            susfs_set_uname((void __user *)arg4);
             return 0;
-        }
 #endif
 #ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
-        if (cmd == CMD_SUSFS_ENABLE_LOG) {
+        case CMD_SUSFS_ENABLE_LOG:
             susfs_set_log(1);
             return 0;
-        }
 #endif
 #ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
-        if (cmd == CMD_SUSFS_SET_CMDLINE_OR_BOOTCONFIG) {
-            susfs_set_cmdline_or_bootconfig((void __user *)*arg);
+        case CMD_SUSFS_SET_CMDLINE_OR_BOOTCONFIG:
+            susfs_set_cmdline_or_bootconfig((void __user *)arg4);
             return 0;
-        }
 #endif
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-        if (cmd == CMD_SUSFS_ADD_OPEN_REDIRECT) {
-            susfs_add_open_redirect((void __user *)*arg);
+        case CMD_SUSFS_ADD_OPEN_REDIRECT:
+            susfs_add_open_redirect((void __user *)arg4);
+            return 0;
+#endif
+        default:
             return 0;
         }
-#endif
-        return 0;
     }
+#endif // #ifdef CONFIG_KSU_SUSFS
 """
-    # Insert SUSFS_MAGIC if it might be missing
-    magic_def = """#ifndef SUSFS_MAGIC
-#define SUSFS_MAGIC 0x53555346
-#endif
-"""
-    if "SUSFS_MAGIC" not in content[:start_idx]:
-        new_block = magic_def + new_block
-        
-    content = content[:start_idx] + new_block + content[end_idx:]
-    with open(filepath, "w") as f:
-        f.write(content)
+
+if "SUSFS_MAGIC" not in content:
+    # Add include
+    if "uapi/supercall.h" in content:
+        content = content.replace("#include \"uapi/supercall.h\"", "#include \"uapi/supercall.h\"\n#ifdef CONFIG_KSU_SUSFS\n#include <linux/susfs.h>\n#endif\n#ifndef SUSFS_MAGIC\n#define SUSFS_MAGIC 0x53555346\n#endif")
+    else:
+        content = content.replace("#include \"ksu.h\"", "#include \"ksu.h\"\n#ifdef CONFIG_KSU_SUSFS\n#include <linux/susfs.h>\n#endif\n#ifndef SUSFS_MAGIC\n#define SUSFS_MAGIC 0x53555346\n#endif")
+    
+    # Insert magic_block before CHANGE_MANAGER_UID
+    if "if (magic2 == CHANGE_MANAGER_UID) {" in content:
+        content = content.replace("if (magic2 == CHANGE_MANAGER_UID) {", magic_block + "\n    if (magic2 == CHANGE_MANAGER_UID) {")
+    # For legacy supercalls.c
+    elif "if (cmd == CMD_SUSFS_ADD_SUS_PATH)" in content:
+        pass # Already patched
+    else:
+        # Fallback for older legacy branches without cmd/arg4 variables
+        legacy_magic_block = magic_block.replace("arg4", "*arg").replace("switch(cmd)", "switch(*arg)")
+        content = content.replace("if (magic2 == GET_SULOG_DUMP_V2) {", legacy_magic_block + "\n    if (magic2 == GET_SULOG_DUMP_V2) {")
+
+with open(filepath, "w") as f:
+    f.write(content)
 ' "$supercalls"
       fi
       
