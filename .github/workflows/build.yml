@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [vanilla, ksu-next, sukisu, ksu-next+susfs, sukisu-ultra+susfs]
+        variant: [ksu-next+susfs]
 
     steps:
       - name: Checkout kernel source
