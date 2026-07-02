@@ -132,6 +132,23 @@ build_kernel() {
   )
 
   log "Generating defconfig (${DEFCONFIG})..."
+  if [[ "$1" == *"susfs"* ]]; then
+    scripts/config --file arch/arm64/configs/${DEFCONFIG} \
+      -e KSU_SUSFS -e KSU_SUSFS_SUS_PATH -e KSU_SUSFS_SUS_MOUNT -e KSU_SUSFS_SUS_KSTAT \
+      -e KSU_SUSFS_OPEN_REDIRECT -e KSU_SUSFS_TRY_UMOUNT \
+      -e KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT -e KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT \
+      -e KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT -e KSU_SUSFS_SPOOF_UNAME \
+      -e KSU_SUSFS_ENABLE_LOG -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
+      -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG -e KSU_SUSFS_SUS_MAP
+  else
+    scripts/config --file arch/arm64/configs/${DEFCONFIG} \
+      -d KSU_SUSFS -d KSU_SUSFS_SUS_PATH -d KSU_SUSFS_SUS_MOUNT -d KSU_SUSFS_SUS_KSTAT \
+      -d KSU_SUSFS_OPEN_REDIRECT -d KSU_SUSFS_TRY_UMOUNT \
+      -d KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT -d KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT \
+      -d KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT -d KSU_SUSFS_SPOOF_UNAME \
+      -d KSU_SUSFS_ENABLE_LOG -d KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
+      -d KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG -d KSU_SUSFS_SUS_MAP
+  fi
   make "${MAKE_FLAGS[@]}" "${DEFCONFIG}"
 
   log "Compiling kernel (${JOBS} threads)..."
@@ -209,8 +226,8 @@ setup_variant() {
       git -C "${KERNEL_DIR}/${src}" clean -fd 2>/dev/null || true
       git -C "${KERNEL_DIR}/${src}" checkout -q "${target_ref}"
       
-      if [[ "$variant" == "ksu-next+susfs" ]]; then
-        log "Injecting SUSFS v1.5.5 support into KernelSU-Next v3.2.0-legacy branch..."
+      if [[ "$variant" == "ksu-next+susfs" || "$variant" == "sukisu-ultra+susfs" ]]; then
+        log "Injecting SUSFS v1.5.5 support into ${src} ${target_ref} branch..."
         
         # 1. Add #include <linux/susfs.h> and call susfs_try_umount(new_uid) in setuid_hook.c
         local setuid_hook="${KERNEL_DIR}/${src}/kernel/setuid_hook.c"
@@ -256,17 +273,12 @@ magic_block = """
 #ifdef CONFIG_KSU_SUSFS
     if (magic2 == SUSFS_MAGIC && current_uid().val == 0) {
         switch(cmd) {
-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
         case CMD_SUSFS_ADD_SUS_PATH:
             susfs_add_sus_path((void __user *)arg4);
             return 0;
-#endif
-#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
         case CMD_SUSFS_ADD_SUS_MOUNT:
             susfs_add_sus_mount((void __user *)arg4);
             return 0;
-#endif
-#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
         case CMD_SUSFS_ADD_SUS_KSTAT:
             susfs_add_sus_kstat((void __user *)arg4);
             return 0;
@@ -276,32 +288,21 @@ magic_block = """
         case CMD_SUSFS_ADD_SUS_KSTAT_STATICALLY:
             susfs_add_sus_kstat((void __user *)arg4);
             return 0;
-#endif
-#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
         case CMD_SUSFS_ADD_TRY_UMOUNT:
             susfs_add_try_umount((void __user *)arg4);
             return 0;
-#endif
-#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
         case CMD_SUSFS_SET_UNAME:
             susfs_set_uname((void __user *)arg4);
             return 0;
-#endif
-#ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
         case CMD_SUSFS_ENABLE_LOG:
             susfs_set_log(1);
             return 0;
-#endif
-#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
         case CMD_SUSFS_SET_CMDLINE_OR_BOOTCONFIG:
             susfs_set_cmdline_or_bootconfig((void __user *)arg4);
             return 0;
-#endif
-#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
         case CMD_SUSFS_ADD_OPEN_REDIRECT:
             susfs_add_open_redirect((void __user *)arg4);
             return 0;
-#endif
         default:
             return 0;
         }
@@ -310,26 +311,119 @@ magic_block = """
 """
 
 if "SUSFS_MAGIC" not in content:
-    # Add include
+    # Add include and define SUSFS_MAGIC
     if "uapi/supercall.h" in content:
         content = content.replace("#include \"uapi/supercall.h\"", "#include \"uapi/supercall.h\"\n#ifdef CONFIG_KSU_SUSFS\n#include <linux/susfs.h>\n#endif\n#ifndef SUSFS_MAGIC\n#define SUSFS_MAGIC 0x53555346\n#endif")
     else:
         content = content.replace("#include \"ksu.h\"", "#include \"ksu.h\"\n#ifdef CONFIG_KSU_SUSFS\n#include <linux/susfs.h>\n#endif\n#ifndef SUSFS_MAGIC\n#define SUSFS_MAGIC 0x53555346\n#endif")
-    
+
+    if "u64 reply = (u64)*arg;" in content:
+        magic_block = magic_block.replace("arg4", "*arg")
+
     # Insert magic_block before CHANGE_MANAGER_UID
-    if "if (magic2 == CHANGE_MANAGER_UID) {" in content:
-        content = content.replace("if (magic2 == CHANGE_MANAGER_UID) {", magic_block + "\n    if (magic2 == CHANGE_MANAGER_UID) {")
-    # For legacy supercalls.c
-    elif "if (cmd == CMD_SUSFS_ADD_SUS_PATH)" in content:
-        pass # Already patched
-    else:
-        # Fallback for older legacy branches without cmd/arg4 variables
-        legacy_magic_block = magic_block.replace("arg4", "*arg").replace("switch(cmd)", "switch(*arg)")
-        content = content.replace("if (magic2 == GET_SULOG_DUMP_V2) {", legacy_magic_block + "\n    if (magic2 == GET_SULOG_DUMP_V2) {")
+    import re
+    content = re.sub(r"([ \t]*)if \(magic2 == CHANGE_MANAGER_UID\) \{", magic_block + r"\n\1if (magic2 == CHANGE_MANAGER_UID) {", content)
 
 with open(filepath, "w") as f:
     f.write(content)
 ' "$supercalls"
+      fi
+
+      # 3. Add selinux domain functions
+      local selinux_c="${KERNEL_DIR}/${src}/kernel/selinux/selinux.c"
+      if [[ -f "$selinux_c" ]]; then
+          python3 -c '
+import sys
+filepath = sys.argv[1]
+with open(filepath, "r") as f:
+    content = f.read()
+
+selinux_patch = """
+#ifdef CONFIG_KSU_SUSFS
+#define KERNEL_INIT_DOMAIN "u:r:init:s0"
+#define KERNEL_ZYGOTE_DOMAIN "u:r:zygote:s0"
+#define KERNEL_PRIV_APP_DOMAIN "u:r:priv_app:s0:c512,c768"
+
+u32 susfs_ksu_sid __read_mostly = 0;
+u32 susfs_init_sid __read_mostly = 0;
+u32 susfs_zygote_sid __read_mostly = 0;
+u32 susfs_priv_app_sid __read_mostly = 0;
+
+static inline void susfs_set_sid(const char *secctx_name, u32 *out_sid)
+{
+    int err;
+    if (!secctx_name || !out_sid) return;
+    err = security_secctx_to_secid(secctx_name, strlen(secctx_name), out_sid);
+    if (err) return;
+}
+
+bool susfs_is_current_zygote_domain(void) {
+    return unlikely(current_sid() == susfs_zygote_sid);
+}
+
+bool susfs_is_current_ksu_domain(void) {
+    return unlikely(current_sid() == susfs_ksu_sid);
+}
+
+bool susfs_is_current_init_domain(void) {
+    return unlikely(current_sid() == susfs_init_sid);
+}
+
+void susfs_set_batch_sid(void)
+{
+    susfs_set_sid(KERNEL_ZYGOTE_DOMAIN, &susfs_zygote_sid);
+    susfs_set_sid(KERNEL_SU_CONTEXT, &susfs_ksu_sid);
+    susfs_set_sid(KERNEL_INIT_DOMAIN, &susfs_init_sid);
+    susfs_set_sid(KERNEL_PRIV_APP_DOMAIN, &susfs_priv_app_sid);
+}
+#endif // CONFIG_KSU_SUSFS
+"""
+if "susfs_is_current_ksu_domain" not in content:
+    content += "\n" + selinux_patch
+    with open(filepath, "w") as f:
+        f.write(content)
+' "$selinux_c"
+      fi
+
+      # 4. Call susfs_set_batch_sid in init.c
+      local init_c="${KERNEL_DIR}/${src}/kernel/core/init.c"
+      if [[ -f "$init_c" ]]; then
+          python3 -c '
+import sys, re
+filepath = sys.argv[1]
+with open(filepath, "r") as f:
+    content = f.read()
+
+if "susfs_set_batch_sid" not in content:
+    if "#include <linux/susfs.h>" not in content:
+        content = "#include <linux/susfs.h>\n" + content
+    content = re.sub(r"(ksu_core_init\([^)]*\)\s*\{)", r"\1\n#ifdef CONFIG_KSU_SUSFS\n    susfs_set_batch_sid();\n#endif", content)
+    with open(filepath, "w") as f:
+        f.write(content)
+' "$init_c"
+      fi
+
+      # 5. Define ksu_try_umount in kernel_umount.c
+      local umount_c="${KERNEL_DIR}/${src}/kernel/feature/kernel_umount.c"
+      if [[ -f "$umount_c" ]]; then
+          python3 -c '
+import sys
+filepath = sys.argv[1]
+with open(filepath, "r") as f:
+    content = f.read()
+
+umount_patch = """
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+void ksu_try_umount(const char *mnt, bool check_mnt, int flags, uid_t uid) {
+    try_umount(mnt, flags);
+}
+#endif
+"""
+if "ksu_try_umount" not in content:
+    content += "\n" + umount_patch
+    with open(filepath, "w") as f:
+        f.write(content)
+' "$umount_c"
       fi
       
       swap_ksu "$src"
@@ -409,8 +503,12 @@ main() {
   echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo -e "${BOLD}  Build Summary (${total_elapsed}s total)${RESET}"
   echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-  for v in "${built[@]}"; do echo -e "  ${GREEN}✓${RESET} ${VARIANT_LABELS[$v]}"; done
-  for v in "${failed[@]}"; do echo -e "  ${RED}✗${RESET} ${VARIANT_LABELS[$v]}"; done
+  for v in "${built[@]:-}"; do
+    [[ -n "$v" ]] && echo -e "  ${GREEN}✓${RESET} ${VARIANT_LABELS[$v]}"
+  done
+  for v in "${failed[@]:-}"; do
+    [[ -n "$v" ]] && echo -e "  ${RED}✗${RESET} ${VARIANT_LABELS[$v]}"
+  done
 
   echo ""
   if [[ ${#built[@]} -gt 0 ]]; then

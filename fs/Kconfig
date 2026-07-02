@@ -329,3 +329,60 @@ source "fs/dlm/Kconfig"
 source "fs/unicode/Kconfig"
 
 endmenu
+
+config KSU_SUSFS
+    bool "KernelSU SUSFS"
+    default y
+
+config KSU_SUSFS_SUS_PATH
+    bool "SUSFS PATH"
+    default y
+
+config KSU_SUSFS_SUS_MOUNT
+    bool "SUSFS MOUNT"
+    default y
+
+config KSU_SUSFS_SUS_KSTAT
+    bool "SUSFS KSTAT"
+    default y
+
+config KSU_SUSFS_SPOOF_UNAME
+    bool "SUSFS SPOOF UNAME"
+    default y
+
+config KSU_SUSFS_ENABLE_LOG
+    bool "SUSFS ENABLE LOG"
+    default y
+
+config KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
+    bool "SUSFS HIDE SYMBOLS"
+    default y
+
+config KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
+    bool "SUSFS SPOOF CMDLINE"
+    default y
+
+config KSU_SUSFS_OPEN_REDIRECT
+    bool "SUSFS OPEN REDIRECT"
+    default y
+
+config KSU_SUSFS_SUS_MAP
+    bool "SUSFS MAP"
+    default y
+
+config KSU_SUSFS_TRY_UMOUNT
+    bool "SUSFS TRY UMOUNT"
+    default y
+
+config KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT
+    bool "SUSFS AUTO ADD KSU DEFAULT MOUNT"
+    default y
+
+config KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
+    bool "SUSFS AUTO ADD SUS BIND MOUNT"
+    default y
+
+config KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT
+    bool "SUSFS AUTO ADD TRY UMOUNT FOR BIND MOUNT"
+    default y
+
