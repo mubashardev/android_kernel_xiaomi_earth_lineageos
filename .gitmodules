@@ -1,8 +1,8 @@
 [submodule "KernelSU-Next"]
 	path = KernelSU-Next
 	url = https://github.com/KernelSU-Next/KernelSU-Next.git
-	branch = dev
+	shallow = true
 [submodule "SukiSU"]
 	path = SukiSU
 	url = https://github.com/SukiSU-Ultra/SukiSU-Ultra.git
-	branch = main
+	shallow = true
