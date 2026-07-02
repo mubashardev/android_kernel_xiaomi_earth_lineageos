@@ -8,8 +8,8 @@
 # any tracked files which get ignored after the change.
 #
 # Normal rules (sorted alphabetically)
-#
 .*
+!.github/
 *.a
 *.asn1.[ch]
 *.bin
