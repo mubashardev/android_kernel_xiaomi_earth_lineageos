@@ -31,14 +31,7 @@ if [[ "$(uname)" == "Darwin" ]]; then
   JOBS="$(sysctl -n hw.logicalcpu)"
   PATH="${LLVM_BIN}:/opt/homebrew/bin:${PATH}"
 else
-  # Linux (GitHub Actions / Ubuntu)
-  # Find the highest installed LLVM version
-  LLVM_VER="$(ls /usr/lib/llvm-*/bin/clang 2>/dev/null | grep -oP '(?<=llvm-)\d+' | sort -rn | head -1)"
-  if [[ -n "${LLVM_VER}" ]]; then
-    LLVM_BIN="/usr/lib/llvm-${LLVM_VER}/bin"
-  else
-    LLVM_BIN="/usr/bin"
-  fi
+  LLVM_BIN="/usr/lib/llvm-17/bin"   # Ubuntu llvm-17
   CROSS_COMPILE="aarch64-linux-gnu-"
   JOBS="$(nproc)"
   PATH="${LLVM_BIN}:${PATH}"
@@ -51,12 +44,16 @@ DATE="$(date +%Y%m%d)"
 declare -A VARIANT_DIRS=(
   [ksu-next]="KernelSU-Next"
   [sukisu]="SukiSU"
+  [ksu-next+susfs]="KernelSU-Next"
+  [sukisu-ultra+susfs]="SukiSU"
 )
 
 declare -A VARIANT_LABELS=(
   [vanilla]="Vanilla (No Root)"
   [ksu-next]="KernelSU-Next"
   [sukisu]="SukiSU-Ultra"
+  [ksu-next+susfs]="KernelSU-Next with SUSFS"
+  [sukisu-ultra+susfs]="SukiSU-Ultra with SUSFS"
 )
 
 # ── Colors ────────────────────────────────────────────────────────────────────
@@ -185,10 +182,26 @@ setup_variant() {
     vanilla)
       ksu_disable
       ;;
-    ksu-next|sukisu)
+    ksu-next|sukisu|ksu-next+susfs|sukisu-ultra+susfs)
       local src="${VARIANT_DIRS[$variant]}"
       [[ -d "${KERNEL_DIR}/${src}/kernel" ]] || \
         err "'${src}/kernel' subdir missing — did submodules initialise?"
+      
+      # Determine branch/tag to check out
+      local target_ref=""
+      case "$variant" in
+        ksu-next) target_ref="dev" ;;
+        sukisu) target_ref="main" ;;
+        ksu-next+susfs) target_ref="v3.1.0-legacy-susfs" ;;
+        sukisu-ultra+susfs) target_ref="builtin" ;;
+      esac
+      
+      log "Checking out ${target_ref} in ${src}..."
+      # Make sure we have the reference (fetch if needed)
+      git -C "${KERNEL_DIR}/${src}" fetch origin "${target_ref}:${target_ref}" --tags 2>/dev/null || \
+      git -C "${KERNEL_DIR}/${src}" fetch origin "${target_ref}" --tags 2>/dev/null || true
+      git -C "${KERNEL_DIR}/${src}" checkout -q "${target_ref}"
+      
       swap_ksu "$src"
       ksu_enable
       ;;
@@ -198,6 +211,15 @@ setup_variant() {
 teardown_variant() {
   local variant="$1"
   [[ "$variant" == "vanilla" ]] && ksu_enable || true
+  
+  # Restore submodules to default branches
+  if [[ "$variant" == "ksu-next" || "$variant" == "ksu-next+susfs" ]]; then
+    log "Restoring KernelSU-Next to dev branch..."
+    git -C "${KERNEL_DIR}/KernelSU-Next" checkout -q dev || true
+  elif [[ "$variant" == "sukisu" || "$variant" == "sukisu-ultra+susfs" ]]; then
+    log "Restoring SukiSU to main branch..."
+    git -C "${KERNEL_DIR}/SukiSU" checkout -q main || true
+  fi
 }
 
 build_variant() {
@@ -215,13 +237,13 @@ main() {
 
   local variants=()
   if [[ $# -eq 0 ]]; then
-    variants=(vanilla ksu-next sukisu)
+    variants=(vanilla ksu-next sukisu ksu-next+susfs sukisu-ultra+susfs)
     log "No variant specified — building ALL variants"
   else
     for arg in "$@"; do
       case "$arg" in
-        vanilla|ksu-next|sukisu) variants+=("$arg") ;;
-        *) err "Unknown variant '${arg}'. Valid: vanilla | ksu-next | sukisu" ;;
+        vanilla|ksu-next|sukisu|ksu-next+susfs|sukisu-ultra+susfs) variants+=("$arg") ;;
+        *) err "Unknown variant '${arg}'. Valid: vanilla | ksu-next | sukisu | ksu-next+susfs | sukisu-ultra+susfs" ;;
       esac
     done
   fi
