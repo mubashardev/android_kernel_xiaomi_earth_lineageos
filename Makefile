@@ -374,9 +374,9 @@ HOSTCXX	= g++
 endif
 KBUILD_HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 \
 		-fomit-frame-pointer -std=gnu89 $(HOST_LFS_CFLAGS) \
-		-I$(srctree)/host-include -I/opt/homebrew/opt/openssl/include $(HOSTCFLAGS)
-KBUILD_HOSTCXXFLAGS := -O2 $(HOST_LFS_CFLAGS) -I$(srctree)/host-include -I/opt/homebrew/opt/openssl/include $(HOSTCXXFLAGS)
-KBUILD_HOSTLDFLAGS  := $(HOST_LFS_LDFLAGS) -L/opt/homebrew/opt/openssl/lib $(HOSTLDFLAGS)
+		-I$(srctree)/host-include -I/opt/homebrew/include -I/opt/homebrew/opt/openssl/include $(HOSTCFLAGS)
+KBUILD_HOSTCXXFLAGS := -O2 $(HOST_LFS_CFLAGS) -I$(srctree)/host-include -I/opt/homebrew/include -I/opt/homebrew/opt/openssl/include $(HOSTCXXFLAGS)
+KBUILD_HOSTLDFLAGS  := $(HOST_LFS_LDFLAGS) -L/opt/homebrew/lib -L/opt/homebrew/opt/openssl/lib $(HOSTLDFLAGS)
 KBUILD_HOSTLDLIBS   := $(HOST_LFS_LIBS) $(HOSTLDLIBS)
 
 # Make variables (CC, etc...)

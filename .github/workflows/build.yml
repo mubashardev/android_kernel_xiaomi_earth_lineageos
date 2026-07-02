@@ -41,7 +41,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             clang-17 lld-17 llvm-17 \
             gcc-aarch64-linux-gnu \
-            bc flex bison make libssl-dev libelf-dev \
+            bc flex bison make libssl-dev libelf-dev libyaml-dev \
             zip unzip python3
           echo "Clang: $(/usr/lib/llvm-17/bin/clang --version | head -1)"
           echo "Cross: $(aarch64-linux-gnu-gcc --version | head -1)"

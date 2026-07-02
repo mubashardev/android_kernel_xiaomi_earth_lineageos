@@ -29,11 +29,13 @@ if [[ "$(uname)" == "Darwin" ]]; then
   LLVM_BIN="/opt/homebrew/opt/llvm/bin"
   CROSS_COMPILE="aarch64-elf-"
   JOBS="$(sysctl -n hw.logicalcpu)"
+  LD_BIN="/opt/homebrew/bin/ld.lld"
   PATH="${LLVM_BIN}:/opt/homebrew/bin:${PATH}"
 else
   LLVM_BIN="/usr/lib/llvm-17/bin"   # Ubuntu llvm-17
   CROSS_COMPILE="aarch64-linux-gnu-"
   JOBS="$(nproc)"
+  LD_BIN="${LLVM_BIN}/ld.lld"
   PATH="${LLVM_BIN}:${PATH}"
 fi
 export PATH
@@ -119,7 +121,7 @@ build_kernel() {
     LLVM=1
     LLVM_IAS=1
     CC="${LLVM_BIN}/clang"
-    LD="${LLVM_BIN}/ld.lld"
+    LD="${LD_BIN}"
     AR="${LLVM_BIN}/llvm-ar"
     NM="${LLVM_BIN}/llvm-nm"
     OBJCOPY="${LLVM_BIN}/llvm-objcopy"
