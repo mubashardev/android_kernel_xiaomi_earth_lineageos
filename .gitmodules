@@ -6,3 +6,7 @@
 	path = SukiSU
 	url = https://github.com/SukiSU-Ultra/SukiSU-Ultra.git
 	shallow = true
+[submodule "AnyKernel3"]
+	path = AnyKernel3
+	url = https://github.com/osm0sis/AnyKernel3.git
+	shallow = true
