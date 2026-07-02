@@ -138,7 +138,7 @@ jobs:
           KERNEL_VER="$(head -3 Makefile | grep -E 'VERSION|PATCHLEVEL|SUBLEVEL' | awk '{print $3}' | tr '\n' '.' | sed 's/\.$//')"
 
           cat > /tmp/release_notes.md << EOF
-          ## 🐉 Xiaomi Earth Kernel — ${{ steps.version.outputs.version }}
+          ## 🐉 LineageOS Xiaomi Earth Kernel — ${{ steps.version.outputs.version }}
 
           **Kernel:** Linux ${KERNEL_VER} • **Device:** Xiaomi Redmi 10C (earth/celestial)
 
