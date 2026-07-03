@@ -2,6 +2,8 @@
 
 A highly optimized and customizable kernel build system for **Redmi 12C / Poco C55 (codename: `earth`)**, based on **LineageOS 23.2** (Android 15) source.
 
+[![Download Latest Release](https://img.shields.io/github/v/release/mubashardev/android_kernel_xiaomi_earth_lineageos?color=blue&label=Download%20Pre-built%20ZIPs&logo=github&style=for-the-badge)](https://github.com/mubashardev/android_kernel_xiaomi_earth_lineageos/releases/latest)
+
 This repository features automated multi-variant building, integrating cutting-edge root and security solutions like **KernelSU-Next**, **SukiSU-Ultra**, and **SUSFS**.
 
 ---
@@ -28,7 +30,19 @@ This repository features automated multi-variant building, integrating cutting-e
 
 ---
 
-## 🛠️ Local Build Instructions
+## 💾 Pre-built Releases
+
+If you want to use the pre-compiled kernel directly on your device, download the latest flashable ZIPs from the releases section:
+
+👉 **[Download Latest Pre-built ZIPs](https://github.com/mubashardev/android_kernel_xiaomi_earth_lineageos/releases/latest)**
+
+Each release contains pre-compiled flashable ZIP files for all supported variants. Once downloaded, follow the [Flash Instructions](#-flash-instructions).
+
+---
+
+## 🛠️ Local Build Guidelines
+
+If you prefer to compile and build your own custom version of the kernel instead, follow the guidelines below.
 
 ### Prerequisites
 
