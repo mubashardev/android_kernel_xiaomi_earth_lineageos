@@ -140,7 +140,7 @@ jobs:
           cat > /tmp/release_notes.md << EOF
           ## 🐉 LineageOS Xiaomi Earth Kernel — ${{ steps.version.outputs.version }}
 
-          **Kernel:** Linux ${KERNEL_VER} • **Device:** Xiaomi Redmi 10C (earth/celestial)
+          **Kernel:** Linux ${KERNEL_VER} • **Device:** Redmi 12C / Poco C55 (earth)
 
           ---
 
